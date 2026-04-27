@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <div class="rounded-circle bg-secondary text-white mx-auto mb-3 d-flex align-items-center justify-content-center"
+                     style="width: 120px; height: 120px;">
+                    <span style="font-size: 48px;">📖</span>
+                </div>
+                <h4>{{ user.username }}</h4>
+                <p class="text-muted">На сайте с {{ user.created_at.strftime('%d.%m.%Y') }}</p>
+                {% if user.bio %}
+                    <p>{{ user.bio }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-9">
+        <h2>Моя библиотека</h2>
+        
+        <ul class="nav nav-tabs" id="bookTabs" role="tablist">
+            <li class="nav-item">
+                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#want" type="button">
+                    📌 Хочу прочитать <span class="badge bg-secondary">{{ want_books|length }}</span>
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#reading" type="button">
+                    📖 Читаю <span class="badge bg-secondary">{{ reading_books|length }}</span>
+                </button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#read" type="button">
+                    ✅ Прочитано <span class="badge bg-secondary">{{ read_books|length }}</span>
+                </button>
+            </li>
+        </ul>
+        
+        <div class="tab-content mt-3">
+            <div class="tab-pane fade show active" id="want" role="tabpanel">
+                <div class="row">
+                    {% for user_book in want_books %}
+                        <div class="col-md-4 mb-3">
+                            <div class="card h-100">
+                                {% if user_book.book.cover_url %}
+                                    <img src="{{ user_book.book.cover_url }}" class="card-img-top" style="height: 150px; object-fit: contain;">
+                                {% endif %}
+                                <div class="card-body">
+                                    <h6 class="card-title">{{ user_book.book.title }}</h6>
+                                    <p class="card-text small text-muted">{{ user_book.book.authors }}</p>
+                                    <a href="{{ url_for('book_detail', google_id=user_book.book.google_books_id) }}" class="btn btn-sm btn-outline-primary">Подробнее</a>
+                                </div>
+                            </div>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">Здесь пока нет книг. Добавьте их через поиск!</p>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <div class="tab-pane fade" id="reading" role="tabpanel">
+                <div class="row">
+                    {% for user_book in reading_books %}
+                        <div class="col-md-4 mb-3">
+                            <div class="card h-100">
+                                {% if user_book.book.cover_url %}
+                                    <img src="{{ user_book.book.cover_url }}" class="card-img-top" style="height: 150px; object-fit: contain;">
+                                {% endif %}
+                                <div class="card-body">
+                                    <h6 class="card-title">{{ user_book.book.title }}</h6>
+                                    <p class="card-text small text-muted">{{ user_book.book.authors }}</p>
+                                    <a href="{{ url_for('book_detail', google_id=user_book.book.google_books_id) }}" class="btn btn-sm btn-outline-primary">Подробнее</a>
+                                </div>
+                            </div>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">Вы ничего не читаете. Добавьте книгу со статусом «Читаю»!</p>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <div class="tab-pane fade" id="read" role="tabpanel">
+                <div class="row">
+                    {% for user_book in read_books %}
+                        <div class="col-md-4 mb-3">
+                            <div class="card h-100">
+                                {% if user_book.book.cover_url %}
+                                    <img src="{{ user_book.book.cover_url }}" class="card-img-top" style="height: 150px; object-fit: contain;">
+                                {% endif %}
+                                <div class="card-body">
+                                    <h6 class="card-title">{{ user_book.book.title }}</h6>
+                                    <p class="card-text small text-muted">{{ user_book.book.authors }}</p>
+                                    {% if user_book.rating %}
+                                        <span class="badge bg-warning text-dark">⭐ {{ user_book.rating }}/5</span>
+                                    {% endif %}
+                                    <a href="{{ url_for('book_detail', google_id=user_book.book.google_books_id) }}" class="btn btn-sm btn-outline-primary mt-2">Подробнее</a>
+                                </div>
+                            </div>
+                        </div>
+                    {% else %}
+                        <p class="text-muted">Вы ещё не прочитали ни одной книги.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

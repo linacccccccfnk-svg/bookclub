@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        {% if book.cover_url %}
+            <img src="{{ book.cover_url }}" class="img-fluid rounded" alt="Обложка">
+        {% else %}
+            <div class="bg-secondary text-white text-center p-5 rounded">Нет обложки</div>
+        {% endif %}
+    </div>
+    
+    <div class="col-md-8">
+        <h1>{{ book.title }}</h1>
+        <h5 class="text-muted">{{ book.authors }}</h5>
+        
+        <p><strong>Год издания:</strong> {{ book.published_year or 'Не указан' }}</p>
+        <p><strong>Страниц:</strong> {{ book.page_count }}</p>
+        <p><strong>Категории:</strong> {{ book.categories }}</p>
+        
+        <hr>
+        <h5>Описание</h5>
+        <p>{{ book.description }}</p>
+        
+        <hr>
+        
+        <!-- Текущий статус книги -->
+        {% if user_book %}
+            <div class="alert alert-info">
+                <strong>В вашей библиотеке:</strong>
+                {% if user_book.status == 'want' %}📌 Хочу прочитать
+                {% elif user_book.status == 'reading' %}📖 Читаю сейчас
+                {% elif user_book.status == 'read' %}✅ Прочитано
+                {% endif %}
+                {% if user_book.rating %}
+                    <br><strong>Ваша оценка:</strong> ⭐ {{ user_book.rating }}/5
+                {% endif %}
+                {% if user_book.review %}
+                    <br><strong>Ваша рецензия:</strong> {{ user_book.review }}
+                {% endif %}
+            </div>
+        {% endif %}
+        
+        <!-- Форма добавления/изменения -->
+        {% if current_user.is_authenticated %}
+            <div class="card mt-3">
+                <div class="card-header">
+                    <strong>{% if user_book %}Изменить{% else %}Добавить в мою библиотеку{% endif %}</strong>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{% if user_book %}{{ url_for('update_review', google_id=book.google_id) }}{% else %}{{ url_for('add_book', google_id=book.google_id) }}{% endif %}">
+                        <div class="row">
+                            <div class="col-md-6 mb-2">
+                                <select name="status" class="form-select">
+                                    <option value="want" {% if user_book and user_book.status == 'want' %}selected{% endif %}>📌 Хочу прочитать</option>
+                                    <option value="reading" {% if user_book and user_book.status == 'reading' %}selected{% endif %}>📖 Читаю сейчас</option>
+                                    <option value="read" {% if user_book and user_book.status == 'read' %}selected{% endif %}>✅ Прочитано</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <select name="rating" class="form-select">
+                                    <option value="">Без оценки</option>
+                                    <option value="5" {% if user_book and user_book.rating == 5 %}selected{% endif %}>⭐⭐⭐⭐⭐ 5</option>
+                                    <option value="4" {% if user_book and user_book.rating == 4 %}selected{% endif %}>⭐⭐⭐⭐ 4</option>
+                                    <option value="3" {% if user_book and user_book.rating == 3 %}selected{% endif %}>⭐⭐⭐ 3</option>
+                                    <option value="2" {% if user_book and user_book.rating == 2 %}selected{% endif %}>⭐⭐ 2</option>
+                                    <option value="1" {% if user_book and user_book.rating == 1 %}selected{% endif %}>⭐ 1</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-2">
+                                <button type="submit" class="btn btn-success w-100">Сохранить</button>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-12">
+                                <textarea name="review" class="form-control" rows="2" placeholder="Ваша рецензия...">{{ user_book.review if user_book else '' }}</textarea>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        {% else %}
+            <div class="alert alert-info mt-3">
+                <a href="{{ url_for('auth.login') }}">Войдите</a>, чтобы добавить книгу в свою библиотеку.
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
