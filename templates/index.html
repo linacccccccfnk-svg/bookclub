@@ -3,11 +3,16 @@
 {% block content %}
 <div class="row">
     <div class="col-md-8 offset-md-2 text-center">
-        <h1 class="display-4">Добро пожаловать в Книжный клуб!</h1>
+        <h1 class="display-4">📚 Добро пожаловать в Книжный клуб!</h1>
         <p class="lead">Здесь вы можете искать книги, добавлять их в свои списки и делиться впечатлениями.</p>
         <hr class="my-4">
         <p>Начните с поиска книг через Google Books API.</p>
-        <a href="/search" class="btn btn-primary btn-lg">Поиск книг</a>
+        <a href="/search" class="btn btn-primary btn-lg">🔍 Поиск книг</a>
+
+        {% if not current_user.is_authenticated %}
+            <hr class="my-4">
+            <p>Уже есть аккаунт? <a href="/auth/login">Войдите</a> или <a href="/auth/register">зарегистрируйтесь</a></p>
+        {% endif %}
     </div>
 </div>
 {% endblock %}
