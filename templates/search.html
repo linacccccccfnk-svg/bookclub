@@ -1,44 +1,90 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2>🔍 Поиск книг</h2>
+<div class="row">
+    <div class="col-12">
+        <h2 class="mb-4"> Поиск книг</h2>
 
-<form method="GET" action="/search" class="mb-4">
-    <div class="input-group">
-        <input type="text" name="q" class="form-control form-control-lg"
-               placeholder="Название книги или автор..." value="{{ query or '' }}">
-        <button class="btn btn-primary btn-lg" type="submit">Искать</button>
-    </div>
-</form>
-
-{% if query %}
-    <hr>
-    <h4>Результаты поиска: "{{ query }}"</h4>
-
-    {% if books %}
-        <div class="row mt-4">
-            {% for book in books %}
-                <div class="col-md-4 mb-4">
-                    <div class="card h-100">
-                        {% if book.cover_url %}
-                            <img src="{{ book.cover_url }}" class="card-img-top" alt="Обложка" style="height: 200px; object-fit: contain;">
-                        {% else %}
-                            <div class="card-img-top bg-secondary text-white text-center py-5">Нет обложки</div>
-                        {% endif %}
-                        <div class="card-body">
-                            <h5 class="card-title">{{ book.title }}</h5>
-                            <p class="card-text text-muted">{{ book.authors }}</p>
-                            <p class="card-text small">{{ book.description|truncate(150) }}</p>
-                        </div>
-                        <div class="card-footer">
-                            <a href="/book/{{ book.google_id }}" class="btn btn-primary btn-sm">Подробнее</a>
-                        </div>
+        <!-- Форма поиска -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <form method="GET" action="/search">
+                    <div class="input-group input-group-lg">
+                        <input type="text" name="q" class="form-control"
+                               placeholder="Введите название книги или автора..."
+                               value="{{ query or '' }}"
+                               required>
+                        <button class="btn btn-primary" type="submit">
+                             Искать
+                        </button>
                     </div>
-                </div>
-            {% endfor %}
+                </form>
+            </div>
         </div>
-    {% else %}
-        <div class="alert alert-warning mt-3">Ничего не найдено. Попробуйте изменить запрос.</div>
-    {% endif %}
-{% endif %}
+
+        <!-- Результаты поиска -->
+        {% if query %}
+            <h4 class="mb-3">Результаты поиска по запросу: "{{ query }}"</h4>
+
+            {% if books %}
+                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+                    {% for book in books %}
+                        <div class="col">
+                            <div class="card h-100 shadow-sm">
+                                <!-- Обложка -->
+                                {% if book.cover %}
+                                    <img src="{{ book.cover }}" class="card-img-top"
+                                         alt="Обложка"
+                                         style="height: 200px; object-fit: contain; background: #f8f9fa; padding: 10px;">
+                                {% else %}
+                                    <div class="card-img-top bg-secondary text-white text-center py-5"
+                                         style="height: 200px; display: flex; align-items: center; justify-content: center;">
+                                         Нет обложки
+                                    </div>
+                                {% endif %}
+
+                                <!-- Информация о книге -->
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ book.title[:60] }}{% if book.title|length > 60 %}...{% endif %}</h5>
+                                    <p class="card-text text-muted small">{{ book.authors }}</p>
+                                    <p class="card-text small">{{ book.description[:120] }}{% if book.description|length > 120 %}...{% endif %}</p>
+                                </div>
+
+                                <!-- Кнопка "Подробнее" -->
+                                <div class="card-footer bg-transparent">
+                                    <a href="/book/{{ book.id }}" class="btn btn-primary btn-sm w-100">
+                                         Подробнее
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="alert alert-warning">
+                    <strong>⚠ Ничего не найдено</strong><br>
+                    Попробуйте изменить поисковый запрос. Например: "Толстой", "Гарри Поттер", "Мастер и Маргарита"
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="alert alert-info">
+                <strong>ℹКак искать книги</strong><br>
+                Введите в строку поиска название книги или имя автора.<br>
+                Например: <strong>"Толстой"</strong>, <strong>"Гарри Поттер"</strong>, <strong>"Мастер и Маргарита"</strong>
+            </div>
+
+            <!-- Примеры популярных запросов -->
+            <div class="mt-4">
+                <h5> Популярные запросы:</h5>
+                <div class="d-flex flex-wrap gap-2 mt-2">
+                    <a href="/search?q=Толстой" class="btn btn-outline-secondary"> Толстой</a>
+                    <a href="/search?q=Достоевский" class="btn btn-outline-secondary"> Достоевский</a>
+                    <a href="/search?q=Гарри Поттер" class="btn btn-outline-secondary"> Гарри Поттер</a>
+                    <a href="/search?q=Властелин колец" class="btn btn-outline-secondary"> Властелин колец</a>
+                    <a href="/search?q=Мастер и Маргарита" class="btn btn-outline-secondary"> Мастер и Маргарита</a>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
 {% endblock %}
