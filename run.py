@@ -14,7 +14,6 @@ login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
 
-# ---------- МОДЕЛИ ----------
 class User(UserMixin, db.Model):
 	id = db.Column(db.Integer, primary_key = True)
 	username = db.Column(db.String(80), unique = True, nullable = False)
@@ -42,23 +41,76 @@ class UserBook(db.Model):
 def load_user(uid): return User.query.get(int(uid))
 
 
-# ---------- API ----------
-def search_books(query):
-	url = f"https://www.googleapis.com/books/v1/volumes?q={urllib.parse.quote(query)}&maxResults=12"
+def search_books_google(query):
+	"""Поиск книг через Google Books API"""
+	import urllib.parse
+
+	if not query:
+		return []
+
+	encoded_query = urllib.parse.quote(query)
+	url = f"https://www.googleapis.com/books/v1/volumes?q={encoded_query}&maxResults=12"
+
+	print(f"🔍 Запрос к API: {url}")
+
 	try:
-		data = requests.get(url, timeout = 10).json()
-		return [{
-			'id': item.get('id'),
-			'title': item.get('volumeInfo', {}).get('title', 'Нет названия'),
-			'authors': ', '.join(item.get('volumeInfo', {}).get('authors', ['Неизвестен'])),
-			'cover': item.get('volumeInfo', {}).get('imageLinks', {}).get('thumbnail', ''),
-			'description': item.get('volumeInfo', {}).get('description', 'Нет описания')
-		} for item in data.get('items', [])]
-	except:
+		response = requests.get(url, timeout = 10)
+		print(f"📡 Статус ответа: {response.status_code}")
+
+		if response.status_code != 200:
+			print(f"❌ Ошибка: статус {response.status_code}")
+			return []
+
+		data = response.json()
+
+		if 'items' not in data:
+			print("❌ Нет ключа 'items' в ответе")
+			return []
+
+		books = []
+		for item in data['items']:
+			try:
+				volume_info = item.get('volumeInfo', {})
+
+				# Получаем обложку
+				cover = ''
+				if 'imageLinks' in volume_info:
+					cover = volume_info['imageLinks'].get('thumbnail', '')
+
+				# Получаем авторов
+				authors = volume_info.get('authors', ['Автор не указан'])
+				if isinstance(authors, list):
+					authors = ', '.join(authors)
+
+				book = {
+					'id': item.get('id', ''),
+					'title': volume_info.get('title', 'Название не указано'),
+					'authors': authors,
+					'cover': cover,
+					'description': volume_info.get('description', 'Описание отсутствует')[:500]
+				}
+				books.append(book)
+				print(f"✅ Добавлена книга: {book['title'][:50]}")
+
+			except Exception as e:
+				print(f"⚠️ Ошибка обработки книги: {e}")
+				continue
+
+		print(f"📚 ВСЕГО НАЙДЕНО: {len(books)}")
+		return books
+
+	except requests.exceptions.Timeout:
+		print("❌ Таймаут подключения")
+		return []
+	except requests.exceptions.ConnectionError:
+		print("❌ Ошибка подключения")
+		return []
+	except Exception as e:
+		print(f"❌ Неизвестная ошибка: {e}")
 		return []
 
 
-# ---------- МАРШРУТЫ ----------
+
 @app.route('/')
 def index(): return render_template('index.html')
 
@@ -98,10 +150,19 @@ def logout():
 	return redirect(url_for('index'))
 
 
-@app.route('/search')
+@app.route('/search', methods = ['GET'])
 def search():
-	q = request.args.get('q', '')
-	return render_template('search.html', query = q, books = search_books(q) if q else [])
+	query = request.args.get('q', '')
+	print(f"🔎 ПОИСК: '{query}'")
+
+	books = []
+	if query:
+		books = search_books_google(query)
+		print(f"📚 Результатов: {len(books)}")
+	else:
+		print("❌ Пустой запрос")
+
+	return render_template('search.html', query = query, books = books)
 
 
 @app.route('/book/<gid>')
