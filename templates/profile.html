@@ -31,7 +31,7 @@
                                 <option value="read" {% if b.status=='read' %}selected{% endif %}> Прочитано</option>
                             </select>
                         </form>
-                        <button class="btn btn-warning btn-sm w-100 mb-1" data-bs-toggle="modal" data-bs-target="#modal{{ b.id }}">⭐ Оценить</button>
+                        <button class="btn btn-warning btn-sm w-100 mb-1" data-bs-toggle="modal" data-bs-target="#modal{{ b.id }}"> Оценить</button>
                         <form method="POST" action="{{ url_for('delete_book', bid=b.id) }}" onsubmit="return confirm('Удалить?')">
                             <button class="btn btn-danger btn-sm w-100"> Удалить</button>
                         </form>
@@ -39,7 +39,6 @@
                 </div>
             </div>
 
-            <!-- Модальное окно -->
             <div class="modal fade" id="modal{{ b.id }}">
                 <div class="modal-dialog">
                     <form method="POST" action="{{ url_for('add_review', bid=b.id) }}" class="modal-content">

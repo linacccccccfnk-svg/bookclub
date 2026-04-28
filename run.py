@@ -2,7 +2,8 @@ from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-import requests, urllib
+import requests
+import urllib.parse
 
 app = Flask(__name__)
 app.secret_key = 'secret-123'
@@ -20,9 +21,11 @@ class User(UserMixin, db.Model):
 	email = db.Column(db.String(120), unique = True, nullable = False)
 	password_hash = db.Column(db.String(200), nullable = False)
 
-	def set_password(self, pwd): self.password_hash = generate_password_hash(pwd)
+	def set_password(self, pwd):
+		self.password_hash = generate_password_hash(pwd)
 
-	def check_password(self, pwd): return check_password_hash(self.password_hash, pwd)
+	def check_password(self, pwd):
+		return check_password_hash(self.password_hash, pwd)
 
 
 class UserBook(db.Model):
@@ -38,81 +41,90 @@ class UserBook(db.Model):
 
 
 @login_manager.user_loader
-def load_user(uid): return User.query.get(int(uid))
+def load_user(uid):
+	return User.query.get(int(uid))
 
 
-def search_books_google(query):
-	"""Поиск книг через Google Books API"""
-	import urllib.parse
-
+def search_books(query):
+	# Поиск книг через Open Library API
 	if not query:
 		return []
 
 	encoded_query = urllib.parse.quote(query)
-	url = f"https://www.googleapis.com/books/v1/volumes?q={encoded_query}&maxResults=12"
+	url = f"https://openlibrary.org/search.json?q={encoded_query}&limit=12"
 
-	print(f"🔍 Запрос к API: {url}")
+	print(f"Запрос к Open Library: {url}")
 
 	try:
 		response = requests.get(url, timeout = 10)
-		print(f"📡 Статус ответа: {response.status_code}")
+		print(f"Статус: {response.status_code}")
 
 		if response.status_code != 200:
-			print(f"❌ Ошибка: статус {response.status_code}")
+			print(f"Ошибка: статус {response.status_code}")
 			return []
 
 		data = response.json()
-
-		if 'items' not in data:
-			print("❌ Нет ключа 'items' в ответе")
-			return []
-
 		books = []
-		for item in data['items']:
-			try:
-				volume_info = item.get('volumeInfo', {})
 
-				# Получаем обложку
-				cover = ''
-				if 'imageLinks' in volume_info:
-					cover = volume_info['imageLinks'].get('thumbnail', '')
+		for doc in data.get('docs', []):
+			# Получаем ID обложки
+			cover_id = doc.get('cover_i')
+			cover_url = f"https://covers.openlibrary.org/b/id/{cover_id}-M.jpg" if cover_id else ""
 
-				# Получаем авторов
-				authors = volume_info.get('authors', ['Автор не указан'])
-				if isinstance(authors, list):
-					authors = ', '.join(authors)
+			# Получаем описание
+			description = doc.get('first_sentence', ['Нет описания'])[0]
+			if not description or description == 'Нет описания':
+				description = f"Книга {doc.get('title', '')} автора {', '.join(doc.get('author_name', ['неизвестного']))}"
 
-				book = {
-					'id': item.get('id', ''),
-					'title': volume_info.get('title', 'Название не указано'),
-					'authors': authors,
-					'cover': cover,
-					'description': volume_info.get('description', 'Описание отсутствует')[:500]
-				}
-				books.append(book)
-				print(f"✅ Добавлена книга: {book['title'][:50]}")
+			book = {
+				'id': doc.get('key', '').replace('/works/', ''),
+				'title': doc.get('title', 'Нет названия'),
+				'authors': ', '.join(doc.get('author_name', ['Неизвестен'])),
+				'cover': cover_url,
+				'description': description[:300]
+			}
+			books.append(book)
+			print(f"Добавлена: {book['title'][:50]}")
 
-			except Exception as e:
-				print(f"⚠️ Ошибка обработки книги: {e}")
-				continue
-
-		print(f"📚 ВСЕГО НАЙДЕНО: {len(books)}")
+		print(f"Найдено книг: {len(books)}")
 		return books
 
-	except requests.exceptions.Timeout:
-		print("❌ Таймаут подключения")
-		return []
-	except requests.exceptions.ConnectionError:
-		print("❌ Ошибка подключения")
-		return []
 	except Exception as e:
-		print(f"❌ Неизвестная ошибка: {e}")
+		print(f"Ошибка: {e}")
 		return []
 
+
+def get_book_details(book_id):
+	# Получение деталей книги из Open Library
+	url = f"https://openlibrary.org/works/{book_id}.json"
+
+	try:
+		response = requests.get(url, timeout = 10)
+		data = response.json()
+
+		cover_id = data.get('covers', [None])[0]
+		cover_url = f"https://covers.openlibrary.org/b/id/{cover_id}-L.jpg" if cover_id else ""
+
+		description = data.get('description', 'Нет описания')
+		if isinstance(description, dict):
+			description = description.get('value', 'Нет описания')
+
+		return {
+			'id': book_id,
+			'title': data.get('title', 'Нет названия'),
+			'authors': data.get('authors', [{}])[0].get('name', 'Автор не указан') if data.get(
+				'authors') else 'Автор не указан',
+			'cover': cover_url,
+			'description': description
+		}
+	except Exception as e:
+		print(f"Ошибка получения деталей: {e}")
+		return None
 
 
 @app.route('/')
-def index(): return render_template('index.html')
+def index():
+	return render_template('index.html')
 
 
 @app.route('/register', methods = ['GET', 'POST'])
@@ -138,6 +150,7 @@ def login():
 		user = User.query.filter_by(username = request.form['username']).first()
 		if user and user.check_password(request.form['password']):
 			login_user(user)
+			flash(f'Добро пожаловать, {user.username}!', 'success')
 			return redirect(url_for('index'))
 		flash('Неверные данные', 'danger')
 	return render_template('login.html')
@@ -147,40 +160,45 @@ def login():
 @login_required
 def logout():
 	logout_user()
+	flash('Вы вышли', 'info')
 	return redirect(url_for('index'))
 
 
 @app.route('/search', methods = ['GET'])
 def search():
 	query = request.args.get('q', '')
-	print(f"🔎 ПОИСК: '{query}'")
-
-	books = []
-	if query:
-		books = search_books_google(query)
-		print(f"📚 Результатов: {len(books)}")
-	else:
-		print("❌ Пустой запрос")
-
+	books = search_books(query) if query else []
 	return render_template('search.html', query = query, books = books)
 
 
-@app.route('/book/<gid>')
-def book_detail(gid):
-	books = search_books(gid)
-	book = books[0] if books else None
-	ub = None
-	if current_user.is_authenticated and book:
-		ub = UserBook.query.filter_by(user_id = current_user.id, book_google_id = gid).first()
-	return render_template('book.html', book = book, book_google_id = gid, user_book = ub)
+@app.route('/book/<book_id>')
+def book_detail(book_id):
+	book = get_book_details(book_id)
+
+	if not book:
+		flash('Книга не найдена', 'danger')
+		return redirect(url_for('search'))
+
+	user_book = None
+	if current_user.is_authenticated:
+		user_book = UserBook.query.filter_by(
+			user_id = current_user.id,
+			book_google_id = book_id
+		).first()
+
+	return render_template('book.html', book = book, book_google_id = book_id, user_book = user_book)
 
 
 @app.route('/add_to_library', methods = ['POST'])
 @login_required
 def add_to_library():
-	ub = UserBook.query.filter_by(user_id = current_user.id, book_google_id = request.form['book_google_id']).first()
-	if ub:
-		ub.status = request.form['status']
+	user_book = UserBook.query.filter_by(
+		user_id = current_user.id,
+		book_google_id = request.form['book_google_id']
+	).first()
+
+	if user_book:
+		user_book.status = request.form['status']
 		flash('Статус обновлён', 'success')
 	else:
 		db.session.add(UserBook(
@@ -191,7 +209,8 @@ def add_to_library():
 			book_google_id = request.form['book_google_id'],
 			status = request.form['status']
 		))
-		flash('Книга добавлена', 'success')
+		flash('Книга добавлена в библиотеку!', 'success')
+
 	db.session.commit()
 	return redirect(url_for('profile'))
 
@@ -199,33 +218,35 @@ def add_to_library():
 @app.route('/update_status/<int:bid>', methods = ['POST'])
 @login_required
 def update_status(bid):
-	ub = UserBook.query.get_or_404(bid)
-	if ub.user_id == current_user.id:
-		ub.status = request.form['status']
+	user_book = UserBook.query.get_or_404(bid)
+	if user_book.user_id == current_user.id:
+		user_book.status = request.form['status']
 		db.session.commit()
+		flash('Статус обновлён', 'success')
 	return redirect(url_for('profile'))
 
 
 @app.route('/add_review/<int:bid>', methods = ['POST'])
 @login_required
 def add_review(bid):
-	ub = UserBook.query.get_or_404(bid)
-	if ub.user_id == current_user.id:
-		ub.rating = request.form.get('rating', type = int)
-		ub.review = request.form.get('review', '')
+	user_book = UserBook.query.get_or_404(bid)
+	if user_book.user_id == current_user.id:
+		rating = request.form.get('rating')
+		user_book.rating = int(rating) if rating else None
+		user_book.review = request.form.get('review', '')
 		db.session.commit()
-		flash('Оценка сохранена', 'success')
+		flash('Оценка и рецензия сохранены!', 'success')
 	return redirect(url_for('profile'))
 
 
 @app.route('/delete_book/<int:bid>', methods = ['POST'])
 @login_required
 def delete_book(bid):
-	ub = UserBook.query.get_or_404(bid)
-	if ub.user_id == current_user.id:
-		db.session.delete(ub)
+	user_book = UserBook.query.get_or_404(bid)
+	if user_book.user_id == current_user.id:
+		db.session.delete(user_book)
 		db.session.commit()
-		flash('Книга удалена', 'success')
+		flash('Книга удалена из библиотеки', 'success')
 	return redirect(url_for('profile'))
 
 
