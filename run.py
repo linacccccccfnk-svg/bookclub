@@ -1,13 +1,12 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
-from models import User, UserBook
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
-import os
 import requests
+import os
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'my-super-secret-key-for-local-dev-12345')
+app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -15,7 +14,7 @@ db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
-# Модель пользователя
+# ====================== МОДЕЛИ ======================
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
@@ -28,18 +27,30 @@ class User(UserMixin, db.Model):
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
 
+class UserBook(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    book_title = db.Column(db.String(200), nullable=False)
+    book_author = db.Column(db.String(200))
+    book_cover = db.Column(db.String(500))
+    book_google_id = db.Column(db.String(100), nullable=False)
+    status = db.Column(db.String(20), default='want')
+    rating = db.Column(db.Integer)
+    review = db.Column(db.Text)
+
+# ====================== ЗАГРУЗКА ПОЛЬЗОВАТЕЛЯ ======================
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# СОЗДАНИЕ ТАБЛИЦ — ЭТО САМОЕ ВАЖНОЕ!
+# ====================== СОЗДАНИЕ ТАБЛИЦ ======================
 with app.app_context():
     db.create_all()
-    print("✅ База данных и таблицы созданы!")
+    print("✅ Таблицы созданы")
 
-# Поиск книг через API
+# ====================== ПОИСК КНИГ (GOOGLE BOOKS API) ======================
 def search_books(query):
-    url = f"https://www.googleapis.com/books/v1/volumes?q={query}&maxResults=10"
+    url = f"https://www.googleapis.com/books/v1/volumes?q={query}&maxResults=12"
     try:
         response = requests.get(url)
         data = response.json()
@@ -57,7 +68,7 @@ def search_books(query):
     except:
         return []
 
-# Маршруты
+# ====================== МАРШРУТЫ ======================
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -115,8 +126,8 @@ def search():
 @app.route('/book/<book_id>')
 def book_detail(book_id):
     books = search_books(book_id)
-    book = books[0] if books else None
-    return render_template('book.html', book=book, book_google_id=book_id)
+    book = books[0] if books else {'id': book_id, 'title': 'Не найдено', 'authors': '', 'cover': '', 'description': ''}
+    return render_template('book.html', book=book)
 
 @app.route('/add_to_library', methods=['POST'])
 @login_required
@@ -127,7 +138,7 @@ def add_to_library():
     book_cover = request.form.get('book_cover')
     status = request.form.get('status')
     
-    # Проверяем, есть ли уже такая книга в библиотеке
+    # Проверяем, есть ли уже такая книга
     existing = UserBook.query.filter_by(
         user_id=current_user.id,
         book_google_id=book_google_id
@@ -135,9 +146,9 @@ def add_to_library():
     
     if existing:
         existing.status = status
-        flash('Статус обновлён!', 'success')
+        flash('Статус книги обновлён!', 'info')
     else:
-        user_book = UserBook(
+        new_book = UserBook(
             user_id=current_user.id,
             book_title=book_title,
             book_author=book_author,
@@ -145,8 +156,8 @@ def add_to_library():
             book_google_id=book_google_id,
             status=status
         )
-        db.session.add(user_book)
-        flash('Книга добавлена!', 'success')
+        db.session.add(new_book)
+        flash('Книга добавлена в библиотеку!', 'success')
     
     db.session.commit()
     return redirect(url_for('profile'))
@@ -154,31 +165,32 @@ def add_to_library():
 @app.route('/profile')
 @login_required
 def profile():
-    return render_template('profile.html', user=current_user)
+    books = UserBook.query.filter_by(user_id=current_user.id).all()
+    want = [b for b in books if b.status == 'want']
+    reading = [b for b in books if b.status == 'reading']
+    read = [b for b in books if b.status == 'read']
+    return render_template('profile.html', want=want, reading=reading, read=read)
+
+# ====================== REST API ======================
 @app.route('/api/user/<username>/books')
 def api_user_books(username):
-    """REST API: возвращает список книг пользователя в JSON"""
     user = User.query.filter_by(username=username).first()
-    
     if not user:
-        return {"error": "Пользователь не найден"}, 404
+        return {'error': 'Пользователь не найден'}, 404
     
     books = UserBook.query.filter_by(user_id=user.id).all()
-    
-    result = {
-        "username": user.username,
-        "books": [
-            {
-                "title": b.book_title,
-                "author": b.book_author,
-                "status": b.status,
-                "rating": b.rating,
-                "review": b.review
-            } for b in books
-        ]
+    return {
+        'username': user.username,
+        'books': [{
+            'title': b.book_title,
+            'author': b.book_author,
+            'status': b.status,
+            'rating': b.rating,
+            'review': b.review
+        } for b in books]
     }
-    
-    return result
+
+# ====================== ЗАПУСК ======================
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
