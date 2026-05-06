@@ -120,8 +120,34 @@ def book_detail(book_id):
 @app.route('/add_to_library', methods=['POST'])
 @login_required
 def add_to_library():
-    # Здесь будет логика добавления в библиотеку
-    flash('Книга добавлена в библиотеку!', 'success')
+    book_google_id = request.form.get('book_google_id')
+    book_title = request.form.get('book_title')
+    book_author = request.form.get('book_author')
+    book_cover = request.form.get('book_cover')
+    status = request.form.get('status')
+    
+    # Проверяем, есть ли уже такая книга в библиотеке
+    existing = UserBook.query.filter_by(
+        user_id=current_user.id,
+        book_google_id=book_google_id
+    ).first()
+    
+    if existing:
+        existing.status = status
+        flash('Статус обновлён!', 'success')
+    else:
+        user_book = UserBook(
+            user_id=current_user.id,
+            book_title=book_title,
+            book_author=book_author,
+            book_cover=book_cover,
+            book_google_id=book_google_id,
+            status=status
+        )
+        db.session.add(user_book)
+        flash('Книга добавлена!', 'success')
+    
+    db.session.commit()
     return redirect(url_for('profile'))
 
 @app.route('/profile')
