@@ -47,14 +47,12 @@ class Book(db.Model):
 
 
 class UserBook(db.Model):
-	__tablename__ = 'user_books'
-
-	id = db.Column(db.Integer, primary_key = True)
-	user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable = False)
-	book_id = db.Column(db.Integer, db.ForeignKey('books.id'), nullable = False)
-	status = db.Column(db.String(20), default = 'want')  # want, reading, read
-	rating = db.Column(db.Integer, default = None)
-	review = db.Column(db.Text, default = '')
-	date_added = db.Column(db.DateTime, default = datetime.utcnow)
-
-	__table_args__ = (db.UniqueConstraint('user_id', 'book_id', name = 'unique_user_book'),)
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    book_title = db.Column(db.String(200))
+    book_author = db.Column(db.String(200))
+    book_cover = db.Column(db.String(500))
+    book_google_id = db.Column(db.String(100))  # ← ЭТО ПОЛЕ ДОЛЖНО БЫТЬ!
+    status = db.Column(db.String(20), default='want')
+    rating = db.Column(db.Integer)
+    review = db.Column(db.Text)
