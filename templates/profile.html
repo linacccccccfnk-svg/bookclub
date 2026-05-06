@@ -1,62 +1,70 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2> Моя библиотека</h2>
+<h2>Моя библиотека</h2>
 
 <ul class="nav nav-tabs">
-    <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#want"> Хочу ({{ want|length }})</button></li>
-    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#reading"> Читаю ({{ reading|length }})</button></li>
-    <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#read"> Прочитано ({{ read|length }})</button></li>
+    <li class="nav-item">
+        <a class="nav-link active" data-bs-toggle="tab" href="#want">📌 Хочу ({{ want|length }})</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" data-bs-toggle="tab" href="#reading">📖 Читаю ({{ reading|length }})</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link" data-bs-toggle="tab" href="#read">✅ Прочитано ({{ read|length }})</a>
+    </li>
 </ul>
 
 <div class="tab-content mt-3">
-    {% for status, books in [('want', want), ('reading', reading), ('read', read)] %}
-    <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="{{ status }}">
+    <div class="tab-pane fade show active" id="want">
         <div class="row">
-            {% for b in books %}
-            <div class="col-md-4 mb-3">
-                <div class="card h-100">
-                    <img src="{{ b.book_cover }}" class="card-img-top" style="height:150px;object-fit:contain">
+            {% for book in want %}
+            <div class="col-md-3 mb-3">
+                <div class="card">
                     <div class="card-body">
-                        <h6>{{ b.book_title[:50] }}</h6>
-                        <p class="small text-muted">{{ b.book_author[:40] }}</p>
-                        {% if b.rating %}<span class="badge bg-warning"> {{ b.rating }}/5</span>{% endif %}
-                        {% if b.review %}<div class="alert alert-info small mt-2">{{ b.review[:100] }}</div>{% endif %}
-                    </div>
-                    <div class="card-footer">
-                        <form method="POST" action="{{ url_for('update_status', bid=b.id) }}" class="mb-1">
-                            <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
-                                <option value="want" {% if b.status=='want' %}selected{% endif %}> Хочу</option>
-                                <option value="reading" {% if b.status=='reading' %}selected{% endif %}> Читаю</option>
-                                <option value="read" {% if b.status=='read' %}selected{% endif %}> Прочитано</option>
-                            </select>
-                        </form>
-                        <button class="btn btn-warning btn-sm w-100 mb-1" data-bs-toggle="modal" data-bs-target="#modal{{ b.id }}"> Оценить</button>
-                        <form method="POST" action="{{ url_for('delete_book', bid=b.id) }}" onsubmit="return confirm('Удалить?')">
-                            <button class="btn btn-danger btn-sm w-100"> Удалить</button>
-                        </form>
+                        <h6>{{ book.book_title[:40] }}</h6>
+                        <p class="small text-muted">{{ book.book_author[:30] }}</p>
                     </div>
                 </div>
             </div>
-
-            <div class="modal fade" id="modal{{ b.id }}">
-                <div class="modal-dialog">
-                    <form method="POST" action="{{ url_for('add_review', bid=b.id) }}" class="modal-content">
-                        <div class="modal-header bg-warning"><h5> Оценить: {{ b.book_title[:40] }}</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
-                        <div class="modal-body">
-                            <select name="rating" class="form-select mb-2">
-                                <option value="">Без оценки</option>
-                                {% for i in range(5,0,-1) %}<option value="{{ i }}" {% if b.rating==i %}selected{% endif %}>{{ '⭐'*i }} {{ i }}</option>{% endfor %}
-                            </select>
-                            <textarea name="review" class="form-control" rows="3" placeholder="Рецензия...">{{ b.review or '' }}</textarea>
-                        </div>
-                        <div class="modal-footer"><button class="btn btn-warning">Сохранить</button></div>
-                    </form>
-                </div>
-            </div>
+            {% else %}
+            <p>Нет книг в этом списке</p>
             {% endfor %}
         </div>
     </div>
-    {% endfor %}
+    
+    <div class="tab-pane fade" id="reading">
+        <div class="row">
+            {% for book in reading %}
+            <div class="col-md-3 mb-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h6>{{ book.book_title[:40] }}</h6>
+                        <p class="small text-muted">{{ book.book_author[:30] }}</p>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <p>Нет книг в этом списке</p>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <div class="tab-pane fade" id="read">
+        <div class="row">
+            {% for book in read %}
+            <div class="col-md-3 mb-3">
+                <div class="card">
+                    <div class="card-body">
+                        <h6>{{ book.book_title[:40] }}</h6>
+                        <p class="small text-muted">{{ book.book_author[:30] }}</p>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <p>Нет книг в этом списке</p>
+            {% endfor %}
+        </div>
+    </div>
 </div>
 {% endblock %}
