@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2> Моя библиотека</h2>
+<h2>📖 Моя библиотека</h2>
 
 <ul class="nav nav-tabs" id="libraryTabs">
     <li class="nav-item">
@@ -11,7 +11,7 @@
     </li>
     <li class="nav-item">
         <button class="nav-link" data-bs-toggle="tab" data-bs-target="#reading">
-            📖 Читаю сейчас <span class="badge bg-secondary">{{ reading|length }}</span>
+             Читаю сейчас <span class="badge bg-secondary">{{ reading|length }}</span>
         </button>
     </li>
     <li class="nav-item">
@@ -52,7 +52,7 @@
                         {% endif %}
                     </div>
                     <div class="card-footer bg-transparent">
-                        <!-- Форма изменения статуса -->
+                        <!-- Смена статуса -->
                         <form method="POST" action="{{ url_for('update_status', book_id=book.id) }}" class="mb-2">
                             <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
                                 <option value="want" {% if book.status == 'want' %}selected{% endif %}> Хочу прочитать</option>
@@ -61,16 +61,24 @@
                             </select>
                         </form>
                         
-                        <!-- Кнопка оценки -->
+                        <!-- Оценка и рецензия -->
                         <button type="button" class="btn btn-warning btn-sm w-100" 
                                 data-bs-toggle="modal" data-bs-target="#reviewModal{{ book.id }}">
                              Оценить и написать отзыв
                         </button>
+                        
+                        <!-- Удаление -->
+                        <form method="POST" action="{{ url_for('delete_book', book_id=book.id) }}" 
+                              onsubmit="return confirm('Вы уверены, что хотите удалить эту книгу?')">
+                            <button type="submit" class="btn btn-danger btn-sm w-100 mt-2">
+                                 Удалить
+                            </button>
+                        </form>
                     </div>
                 </div>
             </div>
             
-            <!-- Модальное окно для оценки -->
+            <!-- Модальное окно -->
             <div class="modal fade" id="reviewModal{{ book.id }}" tabindex="-1">
                 <div class="modal-dialog">
                     <div class="modal-content">
@@ -81,14 +89,14 @@
                         <form method="POST" action="{{ url_for('add_review', book_id=book.id) }}">
                             <div class="modal-body">
                                 <div class="mb-3">
-                                    <label class="form-label">Ваша оценка:</label>
+                                    <label class="form-label">Оценка:</label>
                                     <select name="rating" class="form-select">
                                         <option value="">Без оценки</option>
-                                        <option value="5" {% if book.rating == 5 %}selected{% endif %}> 5 - Отлично</option>
-                                        <option value="4" {% if book.rating == 4 %}selected{% endif %}> 4 - Хорошо</option>
-                                        <option value="3" {% if book.rating == 3 %}selected{% endif %}> 3 - Средне</option>
-                                        <option value="2" {% if book.rating == 2 %}selected{% endif %}> 2 - Плохо</option>
-                                        <option value="1" {% if book.rating == 1 %}selected{% endif %}> 1 - Ужасно</option>
+                                        <option value="5" {% if book.rating == 5 %}selected{% endif %}> 5</option>
+                                        <option value="4" {% if book.rating == 4 %}selected{% endif %}> 4</option>
+                                        <option value="3" {% if book.rating == 3 %}selected{% endif %}> 3</option>
+                                        <option value="2" {% if book.rating == 2 %}selected{% endif %}> 2</option>
+                                        <option value="1" {% if book.rating == 1 %}selected{% endif %}> 1</option>
                                     </select>
                                 </div>
                                 <div class="mb-3">
@@ -107,11 +115,12 @@
             </div>
             {% else %}
             <div class="col-12">
-                <div class="alert alert-info"> В этом списке пока нет книг. Найдите их через <a href="/search">поиск</a>.</div>
+                <div class="alert alert-info">📭 В этом списке пока нет книг.</div>
             </div>
             {% endfor %}
         </div>
     </div>
+    
     <div class="tab-pane fade" id="reading">
         <div class="row">
             {% for book in reading %}
@@ -126,38 +135,32 @@
                         </div>
                     {% endif %}
                     <div class="card-body">
-                        <h6 class="card-title">{{ book.book_title[:50] }}{% if book.book_title|length > 50 %}...{% endif %}</h6>
+                        <h6 class="card-title">{{ book.book_title[:50] }}</h6>
                         <p class="card-text small text-muted">{{ book.book_author[:40] }}</p>
                         {% if book.rating %}
-                            <span class="badge bg-warning text-dark">
-                                {% for i in range(book.rating) %}{% endfor %} {{ book.rating }}/5
-                            </span>
-                        {% endif %}
-                        {% if book.review %}
-                            <div class="alert alert-info small p-2 mt-2">
-                                <strong> Рецензия:</strong><br>
-                                {{ book.review[:100] }}{% if book.review|length > 100 %}...{% endif %}
-                            </div>
+                            <span class="badge bg-warning text-dark"> {{ book.rating }}/5</span>
                         {% endif %}
                     </div>
                     <div class="card-footer bg-transparent">
                         <form method="POST" action="{{ url_for('update_status', book_id=book.id) }}" class="mb-2">
                             <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
-                                <option value="want" {% if book.status == 'want' %}selected{% endif %}> Хочу прочитать</option>
-                                <option value="reading" {% if book.status == 'reading' %}selected{% endif %}> Читаю сейчас</option>
-                                <option value="read" {% if book.status == 'read' %}selected{% endif %}> Прочитано</option>
+                                <option value="want"> Хочу</option>
+                                <option value="reading" selected>📖 Читаю</option>
+                                <option value="read"> Прочитано</option>
                             </select>
                         </form>
-                        
                         <button type="button" class="btn btn-warning btn-sm w-100" 
                                 data-bs-toggle="modal" data-bs-target="#reviewModal{{ book.id }}">
-                             Оценить и написать отзыв
+                             Оценить
                         </button>
+                        <form method="POST" action="{{ url_for('delete_book', book_id=book.id) }}" 
+                              onsubmit="return confirm('Удалить книгу?')">
+                            <button type="submit" class="btn btn-danger btn-sm w-100 mt-2">🗑️ Удалить</button>
+                        </form>
                     </div>
                 </div>
             </div>
             
-            <!-- Модальное окно -->
             <div class="modal fade" id="reviewModal{{ book.id }}" tabindex="-1">
                 <div class="modal-dialog">
                     <div class="modal-content">
@@ -169,11 +172,11 @@
                             <div class="modal-body">
                                 <select name="rating" class="form-select mb-2">
                                     <option value="">Без оценки</option>
-                                    <option value="5" {% if book.rating == 5 %}selected{% endif %}> 5</option>
-                                    <option value="4" {% if book.rating == 4 %}selected{% endif %}> 4</option>
-                                    <option value="3" {% if book.rating == 3 %}selected{% endif %}> 3</option>
-                                    <option value="2" {% if book.rating == 2 %}selected{% endif %}> 2</option>
-                                    <option value="1" {% if book.rating == 1 %}selected{% endif %}> 1</option>
+                                    <option value="5"> 5</option>
+                                    <option value="4"> 4</option>
+                                    <option value="3"> 3</option>
+                                    <option value="2"> 2</option>
+                                    <option value="1"> 1</option>
                                 </select>
                                 <textarea name="review" class="form-control" rows="3" 
                                           placeholder="Рецензия...">{{ book.review or '' }}</textarea>
@@ -187,7 +190,7 @@
             </div>
             {% else %}
             <div class="col-12">
-                <div class="alert alert-info">📭 Вы ничего не читаете. Добавьте книгу со статусом «Читаю».</div>
+                <div class="alert alert-info"> Вы ничего не читаете.</div>
             </div>
             {% endfor %}
         </div>
@@ -207,38 +210,32 @@
                         </div>
                     {% endif %}
                     <div class="card-body">
-                        <h6 class="card-title">{{ book.book_title[:50] }}{% if book.book_title|length > 50 %}...{% endif %}</h6>
+                        <h6 class="card-title">{{ book.book_title[:50] }}</h6>
                         <p class="card-text small text-muted">{{ book.book_author[:40] }}</p>
                         {% if book.rating %}
-                            <span class="badge bg-warning text-dark">
-                                {% for i in range(book.rating) %}{% endfor %} {{ book.rating }}/5
-                            </span>
-                        {% endif %}
-                        {% if book.review %}
-                            <div class="alert alert-info small p-2 mt-2">
-                                <strong> Рецензия:</strong><br>
-                                {{ book.review[:100] }}{% if book.review|length > 100 %}...{% endif %}
-                            </div>
+                            <span class="badge bg-warning text-dark"> {{ book.rating }}/5</span>
                         {% endif %}
                     </div>
                     <div class="card-footer bg-transparent">
                         <form method="POST" action="{{ url_for('update_status', book_id=book.id) }}" class="mb-2">
                             <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
-                                <option value="want" {% if book.status == 'want' %}selected{% endif %}> Хочу прочитать</option>
-                                <option value="reading" {% if book.status == 'reading' %}selected{% endif %}> Читаю сейчас</option>
-                                <option value="read" {% if book.status == 'read' %}selected{% endif %}> Прочитано</option>
+                                <option value="want"> Хочу</option>
+                                <option value="reading"> Читаю</option>
+                                <option value="read" selected> Прочитано</option>
                             </select>
                         </form>
-                        
                         <button type="button" class="btn btn-warning btn-sm w-100" 
                                 data-bs-toggle="modal" data-bs-target="#reviewModal{{ book.id }}">
-                             Оценить и написать отзыв
+                             Оценить
                         </button>
+                        <form method="POST" action="{{ url_for('delete_book', book_id=book.id) }}" 
+                              onsubmit="return confirm('Удалить книгу?')">
+                            <button type="submit" class="btn btn-danger btn-sm w-100 mt-2">🗑️ Удалить</button>
+                        </form>
                     </div>
                 </div>
             </div>
             
-            <!-- Модальное окно -->
             <div class="modal fade" id="reviewModal{{ book.id }}" tabindex="-1">
                 <div class="modal-dialog">
                     <div class="modal-content">
@@ -250,11 +247,11 @@
                             <div class="modal-body">
                                 <select name="rating" class="form-select mb-2">
                                     <option value="">Без оценки</option>
-                                    <option value="5" {% if book.rating == 5 %}selected{% endif %}> 5</option>
-                                    <option value="4" {% if book.rating == 4 %}selected{% endif %}> 4</option>
-                                    <option value="3" {% if book.rating == 3 %}selected{% endif %}> 3</option>
-                                    <option value="2" {% if book.rating == 2 %}selected{% endif %}> 2</option>
-                                    <option value="1" {% if book.rating == 1 %}selected{% endif %}> 1</option>
+                                    <option value="5"> 5</option>
+                                    <option value="4"> 4</option>
+                                    <option value="3"> 3</option>
+                                    <option value="2"> 2</option>
+                                    <option value="1"> 1</option>
                                 </select>
                                 <textarea name="review" class="form-control" rows="3" 
                                           placeholder="Рецензия...">{{ book.review or '' }}</textarea>
