@@ -10,7 +10,14 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'my-super-secret-key-for-local-dev-12345')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+UPLOAD_FOLDER = os.path.join('static', 'uploads')
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
@@ -215,6 +222,28 @@ def update_status(book_id):
         book.status = request.form.get('status')
         db.session.commit()
         flash('Статус книги обновлён!', 'success')
+    return redirect(url_for('profile'))
+@app.route('/upload_avatar', methods=['POST'])
+@login_required
+def upload_avatar():
+    if 'avatar' not in request.files:
+        flash('Файл не выбран', 'danger')
+        return redirect(url_for('profile'))
+    
+    file = request.files['avatar']
+    if file.filename == '':
+        flash('Файл не выбран', 'danger')
+        return redirect(url_for('profile'))
+    
+    if file and allowed_file(file.filename):
+        filename = secure_filename(f"{current_user.id}_{file.filename}")
+        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+        current_user.avatar = filename
+        db.session.commit()
+        flash('Аватарка успешно обновлена!', 'success')
+    else:
+        flash('Неподдерживаемый формат. Используйте PNG, JPG, JPEG, GIF или WEBP', 'danger')
+    
     return redirect(url_for('profile'))
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
