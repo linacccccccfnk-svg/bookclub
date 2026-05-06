@@ -1,33 +1,23 @@
 from flask import Flask, render_template, request, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
-from werkzeug.utils import secure_filename
 from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
 import requests
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', 'my-super-secret-key-for-local-dev-12345')
+app.secret_key = 'my-super-secret-key-12345'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-UPLOAD_FOLDER = os.path.join('static', 'uploads')
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 db = SQLAlchemy(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
-
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(200), nullable=False)
-    avatar = db.Column(db.String(200), default='default.jpg')  # ← ДОБАВИТЬ ЭТУ СТРОКУ
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -52,7 +42,7 @@ def load_user(user_id):
 
 with app.app_context():
     db.create_all()
-    print("База данных и таблицы созданы!")
+    print(" Таблицы созданы")
 
 def search_books(query):
     url = f"https://www.googleapis.com/books/v1/volumes?q={query}&maxResults=12"
@@ -66,7 +56,7 @@ def search_books(query):
                 'id': item.get('id'),
                 'title': info.get('title', 'Нет названия'),
                 'authors': ', '.join(info.get('authors', ['Неизвестен'])),
-                'cover': info.get('imageLinks', {}).get('thumbnail', ''),
+                'cover': info.get('imageLinks', {}).get('thumbnail', '').replace('http://', 'https://'),
                 'description': info.get('description', 'Нет описания')
             })
         return books
@@ -85,15 +75,15 @@ def register():
         password = request.form['password']
         
         if User.query.filter_by(username=username).first():
-            flash('Имя пользователя уже занято', 'danger')
+            flash('Имя занято', 'danger')
         elif User.query.filter_by(email=email).first():
-            flash('Email уже зарегистрирован', 'danger')
+            flash('Email занят', 'danger')
         else:
             user = User(username=username, email=email)
             user.set_password(password)
             db.session.add(user)
             db.session.commit()
-            flash('Регистрация успешна! Теперь войдите.', 'success')
+            flash('Регистрация успешна!', 'success')
             return redirect(url_for('login'))
     
     return render_template('register.html')
@@ -103,14 +93,12 @@ def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
-        
         user = User.query.filter_by(username=username).first()
         if user and user.check_password(password):
             login_user(user)
             flash(f'Добро пожаловать, {user.username}!', 'success')
             return redirect(url_for('index'))
-        else:
-            flash('Неверное имя пользователя или пароль', 'danger')
+        flash('Неверные данные', 'danger')
     
     return render_template('login.html')
 
@@ -118,7 +106,7 @@ def login():
 @login_required
 def logout():
     logout_user()
-    flash('Вы вышли из системы', 'info')
+    flash('Вы вышли', 'info')
     return redirect(url_for('index'))
 
 @app.route('/search')
@@ -130,13 +118,7 @@ def search():
 @app.route('/book/<book_id>')
 def book_detail(book_id):
     books = search_books(book_id)
-    book = books[0] if books else {
-        'id': book_id,
-        'title': 'Книга не найдена',
-        'authors': 'Автор не указан',
-        'cover': '',
-        'description': 'Описание отсутствует'
-    }
+    book = books[0] if books else None
     return render_template('book.html', book=book)
 
 @app.route('/add_to_library', methods=['POST'])
@@ -155,7 +137,7 @@ def add_to_library():
     
     if existing:
         existing.status = status
-        flash('Статус книги обновлён!', 'info')
+        flash('Статус обновлён', 'info')
     else:
         new_book = UserBook(
             user_id=current_user.id,
@@ -166,7 +148,7 @@ def add_to_library():
             status=status
         )
         db.session.add(new_book)
-        flash('Книга добавлена в библиотеку!', 'success')
+        flash('Книга добавлена!', 'success')
     
     db.session.commit()
     return redirect(url_for('profile'))
@@ -175,11 +157,27 @@ def add_to_library():
 @login_required
 def profile():
     books = UserBook.query.filter_by(user_id=current_user.id).all()
-    want = [b for b in books if b.status == 'want']
-    reading = [b for b in books if b.status == 'reading']
-    read = [b for b in books if b.status == 'read']
-    return render_template('profile.html', want=want, reading=reading, read=read)
+    return render_template('profile.html', books=books, user=current_user)
 
+@app.route('/delete_book/<int:book_id>', methods=['POST'])
+@login_required
+def delete_book(book_id):
+    book = UserBook.query.get_or_404(book_id)
+    if book.user_id == current_user.id:
+        db.session.delete(book)
+        db.session.commit()
+        flash('Книга удалена', 'success')
+    return redirect(url_for('profile'))
+
+@app.route('/update_status/<int:book_id>', methods=['POST'])
+@login_required
+def update_status(book_id):
+    book = UserBook.query.get_or_404(book_id)
+    if book.user_id == current_user.id:
+        book.status = request.form.get('status')
+        db.session.commit()
+        flash('Статус обновлён', 'success')
+    return redirect(url_for('profile'))
 @app.route('/api/user/<username>/books')
 def api_user_books(username):
     user = User.query.filter_by(username=username).first()
@@ -197,54 +195,6 @@ def api_user_books(username):
             'review': b.review
         } for b in books]
     }
-
-@app.route('/create-db')
-def create_db():
-    with app.app_context():
-        db.create_all()
-        return ' Таблицы базы данных созданы! <a href="/">На главную</a>'
-
-@app.route('/add_review/<int:book_id>', methods=['POST'])
-@login_required
-def add_review(book_id):
-    book = UserBook.query.get_or_404(book_id)
-    if book.user_id == current_user.id:
-        book.rating = request.form.get('rating', type=int)
-        book.review = request.form.get('review', '')
-        db.session.commit()
-        flash('Оценка и рецензия сохранены!', 'success')
-    return redirect(url_for('profile'))
-@app.route('/update_status/<int:book_id>', methods=['POST'])
-@login_required
-def update_status(book_id):
-    book = UserBook.query.get_or_404(book_id)
-    if book.user_id == current_user.id:
-        book.status = request.form.get('status')
-        db.session.commit()
-        flash('Статус книги обновлён!', 'success')
-    return redirect(url_for('profile'))
-@app.route('/upload_avatar', methods=['POST'])
-@login_required
-def upload_avatar():
-    if 'avatar' not in request.files:
-        flash('Файл не выбран', 'danger')
-        return redirect(url_for('profile'))
-    
-    file = request.files['avatar']
-    if file.filename == '':
-        flash('Файл не выбран', 'danger')
-        return redirect(url_for('profile'))
-    
-    if file and allowed_file(file.filename):
-        filename = secure_filename(f"{current_user.id}_{file.filename}")
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-        current_user.avatar = filename
-        db.session.commit()
-        flash('Аватарка успешно обновлена!', 'success')
-    else:
-        flash('Неподдерживаемый формат. Используйте PNG, JPG, JPEG, GIF или WEBP', 'danger')
-    
-    return redirect(url_for('profile'))
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
