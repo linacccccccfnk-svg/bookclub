@@ -195,6 +195,16 @@ def api_user_books(username):
             'review': b.review
         } for b in books]
     }
+@app.route('/add_review/<int:book_id>', methods=['POST'])
+@login_required
+def add_review(book_id):
+    book = UserBook.query.get_or_404(book_id)
+    if book.user_id == current_user.id:
+        book.rating = request.form.get('rating', type=int)
+        book.review = request.form.get('review', '')
+        db.session.commit()
+        flash('Оценка и рецензия сохранены!', 'success')
+    return redirect(url_for('profile'))
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
