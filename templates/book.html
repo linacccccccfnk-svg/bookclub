@@ -22,9 +22,9 @@
                 <input type="hidden" name="book_cover" value="{{ book.cover }}">
                 
                 <select name="status" class="form-select mb-2">
-                    <option value="want">📌 Хочу прочитать</option>
-                    <option value="reading">📖 Читаю</option>
-                    <option value="read">✅ Прочитано</option>
+                    <option value="want"> Хочу прочитать</option>
+                    <option value="reading"> Читаю</option>
+                    <option value="read"> Прочитано</option>
                 </select>
                 
                 <button type="submit" class="btn btn-success w-100">Добавить в библиотеку</button>
@@ -32,6 +32,28 @@
         {% else %}
             <div class="alert alert-info">Войдите, чтобы добавить книгу</div>
         {% endif %}
+        
+        <!-- Ссылки на покупку -->
+        <div class="card mt-3">
+            <div class="card-header bg-secondary text-white">
+                <strong>Где можно прочитать или купить</strong>
+            </div>
+            <div class="card-body">
+                <div class="d-flex gap-2 flex-wrap">
+                    <a href="https://www.ozon.ru/search/?text={{ book.title }}" 
+                       target="_blank" class="btn btn-outline-primary btn-sm">Ozon</a>
+                    <a href="https://www.bookvoed.ru/search?q={{ book.title }}" 
+                       target="_blank" class="btn btn-outline-secondary btn-sm">Буквоед</a>
+                    <a href="https://www.litres.ru/search/?q={{ book.title }}" 
+                       target="_blank" class="btn btn-outline-info btn-sm">Литрес</a>
+                    <a href="https://www.labirint.ru/search/{{ book.title }}/" 
+                       target="_blank" class="btn btn-outline-success btn-sm">Лабиринт</a>
+                </div>
+                <p class="text-muted mt-2 small">
+                     Книги защищены авторским правом. Ссылки ведут на легальные источники.
+                </p>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
