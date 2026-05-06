@@ -128,7 +128,30 @@ def add_to_library():
 @login_required
 def profile():
     return render_template('profile.html', user=current_user)
-
+@app.route('/api/user/<username>/books')
+def api_user_books(username):
+    """REST API: возвращает список книг пользователя в JSON"""
+    user = User.query.filter_by(username=username).first()
+    
+    if not user:
+        return {"error": "Пользователь не найден"}, 404
+    
+    books = UserBook.query.filter_by(user_id=user.id).all()
+    
+    result = {
+        "username": user.username,
+        "books": [
+            {
+                "title": b.book_title,
+                "author": b.book_author,
+                "status": b.status,
+                "rating": b.rating,
+                "review": b.review
+            } for b in books
+        ]
+    }
+    
+    return result
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
