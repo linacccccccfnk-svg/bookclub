@@ -1,23 +1,23 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2> Моя библиотека</h2>
+<h2>Моя библиотека</h2>
 
 {% if books %}
     <ul class="nav nav-tabs" id="libraryTabs">
         <li class="nav-item">
             <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#want">
-                 Хочу прочитать <span class="badge bg-secondary">{{ books|selectattr("status", "equalto", "want")|list|length }}</span>
+                Хочу прочитать ({{ books|selectattr("status", "equalto", "want")|list|length }})
             </button>
         </li>
         <li class="nav-item">
             <button class="nav-link" data-bs-toggle="tab" data-bs-target="#reading">
-                📖 Читаю сейчас <span class="badge bg-secondary">{{ books|selectattr("status", "equalto", "reading")|list|length }}</span>
+                Читаю сейчас ({{ books|selectattr("status", "equalto", "reading")|list|length }})
             </button>
         </li>
         <li class="nav-item">
             <button class="nav-link" data-bs-toggle="tab" data-bs-target="#read">
-                 Прочитано <span class="badge bg-secondary">{{ books|selectattr("status", "equalto", "read")|list|length }}</span>
+                Прочитано ({{ books|selectattr("status", "equalto", "read")|list|length }})
             </button>
         </li>
     </ul>
@@ -33,7 +33,7 @@
                             <img src="{{ book.book_cover }}" class="card-img-top" style="height: 180px; object-fit: contain; background: #f5f5f5; padding: 10px;">
                         {% else %}
                             <div class="card-img-top bg-secondary text-white text-center py-4">
-                                <span style="font-size: 40px;">📖</span>
+                                <span style="font-size: 40px;">?</span>
                                 <p>Нет обложки</p>
                             </div>
                         {% endif %}
@@ -41,11 +41,11 @@
                             <h6 class="card-title">{{ book.book_title[:50] }}</h6>
                             <p class="card-text small text-muted">{{ book.book_author[:40] }}</p>
                             {% if book.rating %}
-                                <span class="badge bg-warning text-dark"> {{ book.rating }}/5</span>
+                                <span class="badge bg-warning text-dark">Оценка: {{ book.rating }}/5</span>
                             {% endif %}
                             {% if book.review %}
                                 <div class="alert alert-info small p-2 mt-2">
-                                    <strong>📝 Рецензия:</strong><br>
+                                    <strong>Рецензия:</strong><br>
                                     {{ book.review[:100] }}
                                 </div>
                             {% endif %}
@@ -53,13 +53,27 @@
                         <div class="card-footer bg-transparent">
                             <form method="POST" action="{{ url_for('update_status', book_id=book.id) }}" class="mb-2">
                                 <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
-                                    <option value="want" {% if book.status == 'want' %}selected{% endif %}> Хочу</option>
-                                    <option value="reading" {% if book.status == 'reading' %}selected{% endif %}> Читаю</option>
-                                    <option value="read" {% if book.status == 'read' %}selected{% endif %}> Прочитано</option>
+                                    <option value="want" {% if book.status == 'want' %}selected{% endif %}>Хочу прочитать</option>
+                                    <option value="reading" {% if book.status == 'reading' %}selected{% endif %}>Читаю сейчас</option>
+                                    <option value="read" {% if book.status == 'read' %}selected{% endif %}>Прочитано</option>
                                 </select>
                             </form>
-                            <form method="POST" action="{{ url_for('delete_book', book_id=book.id) }}" onsubmit="return confirm('Удалить книгу?')">
-                                <button type="submit" class="btn btn-danger btn-sm w-100">🗑️ Удалить</button>
+                            
+                            <form method="POST" action="{{ url_for('add_review', book_id=book.id) }}" class="mb-2">
+                                <select name="rating" class="form-select form-select-sm d-inline w-25">
+                                    <option value="">Оценка</option>
+                                    <option value="5">5 звезд</option>
+                                    <option value="4">4 звезды</option>
+                                    <option value="3">3 звезды</option>
+                                    <option value="2">2 звезды</option>
+                                    <option value="1">1 звезда</option>
+                                </select>
+                                <input type="text" name="review" class="form-control d-inline w-50" placeholder="Рецензия" style="display: inline-block;">
+                                <button type="submit" class="btn btn-warning btn-sm">Сохранить отзыв</button>
+                            </form>
+                            
+                            <form method="POST" action="{{ url_for('delete_book', book_id=book.id) }}" onsubmit="return confirm('Вы уверены, что хотите удалить эту книгу?')">
+                                <button type="submit" class="btn btn-danger btn-sm w-100">Удалить</button>
                             </form>
                         </div>
                     </div>
@@ -72,6 +86,7 @@
             </div>
         </div>
 
+        <!-- Вкладка: Читаю сейчас -->
         <div class="tab-pane fade" id="reading">
             <div class="row">
                 {% for book in books if book.status == 'reading' %}
@@ -81,7 +96,7 @@
                             <img src="{{ book.book_cover }}" class="card-img-top" style="height: 180px; object-fit: contain; background: #f5f5f5; padding: 10px;">
                         {% else %}
                             <div class="card-img-top bg-secondary text-white text-center py-4">
-                                <span style="font-size: 40px;">📖</span>
+                                <span style="font-size: 40px;">?</span>
                                 <p>Нет обложки</p>
                             </div>
                         {% endif %}
@@ -89,19 +104,39 @@
                             <h6 class="card-title">{{ book.book_title[:50] }}</h6>
                             <p class="card-text small text-muted">{{ book.book_author[:40] }}</p>
                             {% if book.rating %}
-                                <span class="badge bg-warning text-dark"> {{ book.rating }}/5</span>
+                                <span class="badge bg-warning text-dark">Оценка: {{ book.rating }}/5</span>
+                            {% endif %}
+                            {% if book.review %}
+                                <div class="alert alert-info small p-2 mt-2">
+                                    <strong>Рецензия:</strong><br>
+                                    {{ book.review[:100] }}
+                                </div>
                             {% endif %}
                         </div>
                         <div class="card-footer bg-transparent">
                             <form method="POST" action="{{ url_for('update_status', book_id=book.id) }}" class="mb-2">
                                 <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
-                                    <option value="want"> Хочу</option>
-                                    <option value="reading" selected>📖 Читаю</option>
-                                    <option value="read"> Прочитано</option>
+                                    <option value="want">Хочу прочитать</option>
+                                    <option value="reading" selected>Читаю сейчас</option>
+                                    <option value="read">Прочитано</option>
                                 </select>
                             </form>
-                            <form method="POST" action="{{ url_for('delete_book', book_id=book.id) }}" onsubmit="return confirm('Удалить книгу?')">
-                                <button type="submit" class="btn btn-danger btn-sm w-100"> Удалить</button>
+                            
+                            <form method="POST" action="{{ url_for('add_review', book_id=book.id) }}" class="mb-2">
+                                <select name="rating" class="form-select form-select-sm d-inline w-25">
+                                    <option value="">Оценка</option>
+                                    <option value="5">5 звезд</option>
+                                    <option value="4">4 звезды</option>
+                                    <option value="3">3 звезды</option>
+                                    <option value="2">2 звезды</option>
+                                    <option value="1">1 звезда</option>
+                                </select>
+                                <input type="text" name="review" class="form-control d-inline w-50" placeholder="Рецензия" style="display: inline-block;">
+                                <button type="submit" class="btn btn-warning btn-sm">Сохранить отзыв</button>
+                            </form>
+                            
+                            <form method="POST" action="{{ url_for('delete_book', book_id=book.id) }}" onsubmit="return confirm('Вы уверены, что хотите удалить эту книгу?')">
+                                <button type="submit" class="btn btn-danger btn-sm w-100">Удалить</button>
                             </form>
                         </div>
                     </div>
@@ -124,7 +159,7 @@
                             <img src="{{ book.book_cover }}" class="card-img-top" style="height: 180px; object-fit: contain; background: #f5f5f5; padding: 10px;">
                         {% else %}
                             <div class="card-img-top bg-secondary text-white text-center py-4">
-                                <span style="font-size: 40px;">📖</span>
+                                <span style="font-size: 40px;">?</span>
                                 <p>Нет обложки</p>
                             </div>
                         {% endif %}
@@ -132,11 +167,11 @@
                             <h6 class="card-title">{{ book.book_title[:50] }}</h6>
                             <p class="card-text small text-muted">{{ book.book_author[:40] }}</p>
                             {% if book.rating %}
-                                <span class="badge bg-warning text-dark"> {{ book.rating }}/5</span>
+                                <span class="badge bg-warning text-dark">Оценка: {{ book.rating }}/5</span>
                             {% endif %}
                             {% if book.review %}
                                 <div class="alert alert-info small p-2 mt-2">
-                                    <strong> Рецензия:</strong><br>
+                                    <strong>Рецензия:</strong><br>
                                     {{ book.review[:100] }}
                                 </div>
                             {% endif %}
@@ -144,13 +179,27 @@
                         <div class="card-footer bg-transparent">
                             <form method="POST" action="{{ url_for('update_status', book_id=book.id) }}" class="mb-2">
                                 <select name="status" class="form-select form-select-sm" onchange="this.form.submit()">
-                                    <option value="want"> Хочу</option>
-                                    <option value="reading"> Читаю</option>
-                                    <option value="read" selected> Прочитано</option>
+                                    <option value="want">Хочу прочитать</option>
+                                    <option value="reading">Читаю сейчас</option>
+                                    <option value="read" selected>Прочитано</option>
                                 </select>
                             </form>
-                            <form method="POST" action="{{ url_for('delete_book', book_id=book.id) }}" onsubmit="return confirm('Удалить книгу?')">
-                                <button type="submit" class="btn btn-danger btn-sm w-100">🗑️ Удалить</button>
+                            
+                            <form method="POST" action="{{ url_for('add_review', book_id=book.id) }}" class="mb-2">
+                                <select name="rating" class="form-select form-select-sm d-inline w-25">
+                                    <option value="">Оценка</option>
+                                    <option value="5">5 звезд</option>
+                                    <option value="4">4 звезды</option>
+                                    <option value="3">3 звезды</option>
+                                    <option value="2">2 звезды</option>
+                                    <option value="1">1 звезда</option>
+                                </select>
+                                <input type="text" name="review" class="form-control d-inline w-50" placeholder="Рецензия" style="display: inline-block;">
+                                <button type="submit" class="btn btn-warning btn-sm">Сохранить отзыв</button>
+                            </form>
+                            
+                            <form method="POST" action="{{ url_for('delete_book', book_id=book.id) }}" onsubmit="return confirm('Вы уверены, что хотите удалить эту книгу?')">
+                                <button type="submit" class="btn btn-danger btn-sm w-100">Удалить</button>
                             </form>
                         </div>
                     </div>
@@ -165,7 +214,7 @@
     </div>
 {% else %}
     <div class="alert alert-info">
-         Ваша библиотека пуста. Перейдите в <a href="/search">поиск</a>, чтобы добавить книги.
+        Ваша библиотека пуста. Перейдите в поиск, чтобы добавить книги.
     </div>
 {% endif %}
 {% endblock %}
