@@ -45,23 +45,45 @@ with app.app_context():
     print(" Таблицы созданы")
 
 def search_books(query):
-    url = f"https://www.googleapis.com/books/v1/volumes?q={query}&maxResults=12"
+    """Поиск книг через Open Library API (без квот)"""
+    import urllib.parse
+    encoded_query = urllib.parse.quote(query)
+    url = f"https://openlibrary.org/search.json?q={encoded_query}&limit=12"
+    print(f"🔍 Запрос к Open Library: {url}")
+
     try:
         response = requests.get(url, timeout=10)
+        print(f"📡 Статус: {response.status_code}")
+
+        if response.status_code != 200:
+            print("❌ Ошибка API")
+            return []
+
         data = response.json()
         books = []
-        for item in data.get('items', []):
-            info = item.get('volumeInfo', {})
+
+        for doc in data.get('docs', []):
+            cover_id = doc.get('cover_i')
+            cover_url = f"https://covers.openlibrary.org/b/id/{cover_id}-M.jpg" if cover_id else ""
+
+            # Описание из первого предложения (если есть)
+            description = doc.get('first_sentence', [''])[0]
+            if not description:
+                description = f"Книга {doc.get('title', '')}"
+
             books.append({
-                'id': item.get('id'),
-                'title': info.get('title', 'Нет названия'),
-                'authors': ', '.join(info.get('authors', ['Неизвестен'])),
-                'cover': info.get('imageLinks', {}).get('thumbnail', '').replace('http://', 'https://'),
-                'description': info.get('description', 'Нет описания')
+                'id': doc.get('key', '').replace('/works/', ''),
+                'title': doc.get('title', 'Без названия'),
+                'authors': ', '.join(doc.get('author_name', ['Неизвестный автор'])),
+                'cover': cover_url,
+                'description': description
             })
+            print(f" Добавлена: {books[-1]['title']}")
+
+        print(f" Найдено книг: {len(books)}")
         return books
     except Exception as e:
-        print(f"Ошибка API: {e}")
+        print(f" Ошибка: {e}")
         return []
 @app.route('/')
 def index():
